@@ -1,29 +1,33 @@
 {
   "name": "kafka_unclean_leader_election",
-  "description": "The incident type is related to an unclean leader election that has occurred in a Kafka Platform cluster. This is an indication of potential data loss and needs to be addressed urgently. It is important to disable unclean leader election in Broker settings if it was not intentional. The incident requires prompt attention to mitigate any potential data loss.",
+  "description": "A Kafka unclean leader election is a situation where multiple brokers in a Kafka cluster claim to be the leader for the same partition. This can occur due to misconfiguration or network issues. The result is that data may be lost or duplicated, which can cause downstream issues for consumers. It is important to quickly identify and resolve this type of incident to ensure the proper functioning of the Kafka cluster.",
   "params": [
-    {
-      "name": "KAFKA_HOST",
-      "value": ""
-    },
     {
       "name": "TOPIC_NAME",
       "value": ""
     },
     {
-      "name": "KAFKA_LOGS",
+      "name": "LIST_OF_BROKER_IPS",
       "value": ""
     },
     {
-      "name": "ZOOKEEPER_HOST",
+      "name": "NEW_REPLICA_COUNT",
       "value": ""
     },
     {
-      "name": "KAFKA_PORT",
+      "name": "KAFKA_BOOTSTRAP_SERVER",
       "value": ""
     },
     {
-      "name": "BROKER_SETTINGS",
+      "name": "KAFKA_CONFIGURATION_FILE",
+      "value": ""
+    },
+    {
+      "name": "PARTITION_NUMBER",
+      "value": ""
+    },
+    {
+      "name": "ZOOKEEPER_CONNECTION_STRING",
       "value": ""
     },
     {
@@ -44,127 +48,103 @@
       "name": "cell_1",
       "type": "MARKDOWN",
       "enabled": true,
-      "content": "## Kafka Unclean leader election\nThe incident type is related to an unclean leader election that has occurred in a Kafka Platform cluster. This is an indication of potential data loss and needs to be addressed urgently. It is important to disable unclean leader election in Broker settings if it was not intentional. The incident requires prompt attention to mitigate any potential data loss."
+      "content": "## Kafka unclean leader election\nA Kafka unclean leader election is a situation where multiple brokers in a Kafka cluster claim to be the leader for the same partition. This can occur due to misconfiguration or network issues. The result is that data may be lost or duplicated, which can cause downstream issues for consumers. It is important to quickly identify and resolve this type of incident to ensure the proper functioning of the Kafka cluster."
     },
     {
       "name": "cell_2",
       "type": "MARKDOWN",
       "enabled": true,
-      "content": "## Check for any errors in Kafka logs related to unclean leader election"
+      "content": "## List all topics in the Kafka cluster"
     },
     {
       "name": "cell_3",
       "type": "OP_LANG",
       "enabled": true,
-      "content": "(host | host_name=$HOST_NAME) union (pod | k8s_cluster_name=$K8S_CLUSTER_NAME | namespace=$NAMESPACE) | `grep -i \"unclean leader election\" ${KAFKA_LOGS}`"
+      "content": "(host | host_name=$HOST_NAME) union (pod | k8s_cluster_name=$K8S_CLUSTER_NAME | namespace=$NAMESPACE) | `kafka-topics --bootstrap-server ${KAFKA_BOOTSTRAP_SERVER} --list`"
     },
     {
       "name": "cell_4",
       "type": "MARKDOWN",
       "enabled": true,
-      "content": "## Check if the unclean leader election was intentional or not"
+      "content": "## Describe a specific topic, including the number of partitions and replica assignment"
     },
     {
       "name": "cell_5",
       "type": "OP_LANG",
       "enabled": true,
-      "content": "(host | host_name=$HOST_NAME) union (pod | k8s_cluster_name=$K8S_CLUSTER_NAME | namespace=$NAMESPACE) | `cat ${BROKER_SETTINGS} | grep \"unclean.leader.election.enable\"`"
+      "content": "(host | host_name=$HOST_NAME) union (pod | k8s_cluster_name=$K8S_CLUSTER_NAME | namespace=$NAMESPACE) | `kafka-topics --bootstrap-server ${KAFKA_BOOTSTRAP_SERVER} --describe --topic ${TOPIC_NAME}`"
     },
     {
       "name": "cell_6",
       "type": "MARKDOWN",
       "enabled": true,
-      "content": "## Check the status of the Kafka brokers in the cluster"
+      "content": "## Check the status of the Kafka brokers"
     },
     {
       "name": "cell_7",
       "type": "OP_LANG",
       "enabled": true,
-      "content": "(host | host_name=$HOST_NAME) union (pod | k8s_cluster_name=$K8S_CLUSTER_NAME | namespace=$NAMESPACE) | `systemctl status kafka`"
+      "content": "(host | host_name=$HOST_NAME) union (pod | k8s_cluster_name=$K8S_CLUSTER_NAME | namespace=$NAMESPACE) | `kafka-broker-api-versions --bootstrap-server ${KAFKA_BOOTSTRAP_SERVER}`"
     },
     {
       "name": "cell_8",
       "type": "MARKDOWN",
       "enabled": true,
-      "content": "## Check if the ZooKeeper ensemble is up and running"
+      "content": "## Check the status of the ZooKeeper ensemble that is used by the Kafka cluster for coordination"
     },
     {
       "name": "cell_9",
       "type": "OP_LANG",
       "enabled": true,
-      "content": "(host | host_name=$HOST_NAME) union (pod | k8s_cluster_name=$K8S_CLUSTER_NAME | namespace=$NAMESPACE) | `systemctl status zookeeper`"
+      "content": "(host | host_name=$HOST_NAME) union (pod | k8s_cluster_name=$K8S_CLUSTER_NAME | namespace=$NAMESPACE) | `zookeeper-shell ${ZOOKEEPER_CONNECTION_STRING} ls /brokers/ids`"
     },
     {
       "name": "cell_10",
       "type": "MARKDOWN",
       "enabled": true,
-      "content": "## Verify if the Kafka cluster is reachable from the client application"
+      "content": "## Check the Kafka configuration file  to ensure that the "
     },
     {
       "name": "cell_11",
       "type": "OP_LANG",
       "enabled": true,
-      "content": "(host | host_name=$HOST_NAME) union (pod | k8s_cluster_name=$K8S_CLUSTER_NAME | namespace=$NAMESPACE) | `telnet ${KAFKA_HOST} ${KAFKA_PORT}`"
+      "content": "(host | host_name=$HOST_NAME) union (pod | k8s_cluster_name=$K8S_CLUSTER_NAME | namespace=$NAMESPACE) | `grep \"unclean.leader.election.enable\" ${KAFKA_CONFIGURATION_FILE}`"
     },
     {
       "name": "cell_12",
       "type": "MARKDOWN",
       "enabled": true,
-      "content": "## Check the Kafka topic partition status"
+      "content": "## Check the Kafka logs for any errors or warning messages related to leader elections"
     },
     {
       "name": "cell_13",
       "type": "OP_LANG",
       "enabled": true,
-      "content": "(host | host_name=$HOST_NAME) union (pod | k8s_cluster_name=$K8S_CLUSTER_NAME | namespace=$NAMESPACE) | `kafka-topics --describe --topic ${TOPIC_NAME} --zookeeper ${ZOOKEEPER_HOST}`"
+      "content": "(host | host_name=$HOST_NAME) union (pod | k8s_cluster_name=$K8S_CLUSTER_NAME | namespace=$NAMESPACE) | `tail -f /var/log/kafka/server.log | grep \"unclean leader election\"`"
     },
     {
       "name": "cell_14",
       "type": "MARKDOWN",
       "enabled": true,
-      "content": "## Check the Kafka cluster health"
+      "content": "## Increase the number of replicas for partition."
     },
     {
       "name": "cell_15",
       "type": "OP_LANG",
       "enabled": true,
-      "content": "(host | host_name=$HOST_NAME) union (pod | k8s_cluster_name=$K8S_CLUSTER_NAME | namespace=$NAMESPACE) | `kafka-run-class kafka.tools.JmxTool --jmx-url service:jmx:jmxmp://${KAFKA_HOST}:9999 --object-name kafka.controller:type=KafkaController --attributes OfflinePartitionsCount,ActiveControllerCount,OfflineReplicaCount`"
+      "content": "host | host_name=$HOST_NAME | invoke_replica_increase($TOPIC_NAME, $NEW_REPLICA_COUNT, $PARTITION_NUMBER)"
     },
     {
       "name": "cell_16",
       "type": "MARKDOWN",
       "enabled": true,
-      "content": "## An issue with the network connection between the Kafka broker and the ZooKeeper ensemble."
+      "content": "## Check the Kafka configuration file on each broker to ensure that the "
     },
     {
       "name": "cell_17",
       "type": "OP_LANG",
       "enabled": true,
-      "content": "host | host_name=$HOST_NAME | invoke_network_check()"
-    },
-    {
-      "name": "cell_18",
-      "type": "MARKDOWN",
-      "enabled": true,
-      "content": "## Disable unclean leader election in the Broker settings to prevent future occurrences."
-    },
-    {
-      "name": "cell_19",
-      "type": "OP_LANG",
-      "enabled": true,
-      "content": "host | host_name=$HOST_NAME | invoke_disable_unclean_leader_election($BROKER_SETTINGS)"
-    },
-    {
-      "name": "cell_20",
-      "type": "MARKDOWN",
-      "enabled": true,
-      "content": "## Review the Kafka configuration and adjust it if necessary to prevent similar incidents from occurring in the future."
-    },
-    {
-      "name": "cell_21",
-      "type": "OP_LANG",
-      "enabled": true,
-      "content": "host | host_name=$HOST_NAME | invoke_kafka_config_review()"
+      "content": "host | host_name=$HOST_NAME | invoke_kafka_config_update($LIST_OF_BROKER_IPS, $KAFKA_CONFIGURATION_FILE)"
     }
   ]
 }

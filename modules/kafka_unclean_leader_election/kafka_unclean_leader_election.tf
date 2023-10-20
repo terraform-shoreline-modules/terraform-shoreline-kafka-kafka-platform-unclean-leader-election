@@ -1,66 +1,46 @@
 resource "shoreline_notebook" "kafka_unclean_leader_election" {
   name       = "kafka_unclean_leader_election"
   data       = file("${path.module}/data/kafka_unclean_leader_election.json")
-  depends_on = [shoreline_action.invoke_network_check,shoreline_action.invoke_disable_unclean_leader_election,shoreline_action.invoke_kafka_config_review]
+  depends_on = [shoreline_action.invoke_replica_increase,shoreline_action.invoke_kafka_config_update]
 }
 
-resource "shoreline_file" "network_check" {
-  name             = "network_check"
-  input_file       = "${path.module}/data/network_check.sh"
-  md5              = filemd5("${path.module}/data/network_check.sh")
-  description      = "An issue with the network connection between the Kafka broker and the ZooKeeper ensemble."
-  destination_path = "/agent/scripts/network_check.sh"
+resource "shoreline_file" "replica_increase" {
+  name             = "replica_increase"
+  input_file       = "${path.module}/data/replica_increase.sh"
+  md5              = filemd5("${path.module}/data/replica_increase.sh")
+  description      = "Increase the number of replicas for partition."
+  destination_path = "/tmp/replica_increase.sh"
   resource_query   = "host"
   enabled          = true
 }
 
-resource "shoreline_file" "disable_unclean_leader_election" {
-  name             = "disable_unclean_leader_election"
-  input_file       = "${path.module}/data/disable_unclean_leader_election.sh"
-  md5              = filemd5("${path.module}/data/disable_unclean_leader_election.sh")
-  description      = "Disable unclean leader election in the Broker settings to prevent future occurrences."
-  destination_path = "/agent/scripts/disable_unclean_leader_election.sh"
+resource "shoreline_file" "kafka_config_update" {
+  name             = "kafka_config_update"
+  input_file       = "${path.module}/data/kafka_config_update.sh"
+  md5              = filemd5("${path.module}/data/kafka_config_update.sh")
+  description      = "Check the Kafka configuration file on each broker to ensure that the "
+  destination_path = "/tmp/kafka_config_update.sh"
   resource_query   = "host"
   enabled          = true
 }
 
-resource "shoreline_file" "kafka_config_review" {
-  name             = "kafka_config_review"
-  input_file       = "${path.module}/data/kafka_config_review.sh"
-  md5              = filemd5("${path.module}/data/kafka_config_review.sh")
-  description      = "Review the Kafka configuration and adjust it if necessary to prevent similar incidents from occurring in the future."
-  destination_path = "/agent/scripts/kafka_config_review.sh"
-  resource_query   = "host"
-  enabled          = true
+resource "shoreline_action" "invoke_replica_increase" {
+  name        = "invoke_replica_increase"
+  description = "Increase the number of replicas for partition."
+  command     = "`chmod +x /tmp/replica_increase.sh && /tmp/replica_increase.sh`"
+  params      = ["TOPIC_NAME","NEW_REPLICA_COUNT","PARTITION_NUMBER"]
+  file_deps   = ["replica_increase"]
+  enabled     = true
+  depends_on  = [shoreline_file.replica_increase]
 }
 
-resource "shoreline_action" "invoke_network_check" {
-  name        = "invoke_network_check"
-  description = "An issue with the network connection between the Kafka broker and the ZooKeeper ensemble."
-  command     = "`chmod +x /agent/scripts/network_check.sh && /agent/scripts/network_check.sh`"
-  params      = []
-  file_deps   = ["network_check"]
+resource "shoreline_action" "invoke_kafka_config_update" {
+  name        = "invoke_kafka_config_update"
+  description = "Check the Kafka configuration file on each broker to ensure that the "
+  command     = "`chmod +x /tmp/kafka_config_update.sh && /tmp/kafka_config_update.sh`"
+  params      = ["LIST_OF_BROKER_IPS","KAFKA_CONFIGURATION_FILE"]
+  file_deps   = ["kafka_config_update"]
   enabled     = true
-  depends_on  = [shoreline_file.network_check]
-}
-
-resource "shoreline_action" "invoke_disable_unclean_leader_election" {
-  name        = "invoke_disable_unclean_leader_election"
-  description = "Disable unclean leader election in the Broker settings to prevent future occurrences."
-  command     = "`chmod +x /agent/scripts/disable_unclean_leader_election.sh && /agent/scripts/disable_unclean_leader_election.sh`"
-  params      = ["BROKER_SETTINGS"]
-  file_deps   = ["disable_unclean_leader_election"]
-  enabled     = true
-  depends_on  = [shoreline_file.disable_unclean_leader_election]
-}
-
-resource "shoreline_action" "invoke_kafka_config_review" {
-  name        = "invoke_kafka_config_review"
-  description = "Review the Kafka configuration and adjust it if necessary to prevent similar incidents from occurring in the future."
-  command     = "`chmod +x /agent/scripts/kafka_config_review.sh && /agent/scripts/kafka_config_review.sh`"
-  params      = []
-  file_deps   = ["kafka_config_review"]
-  enabled     = true
-  depends_on  = [shoreline_file.kafka_config_review]
+  depends_on  = [shoreline_file.kafka_config_update]
 }
 
